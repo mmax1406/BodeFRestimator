@@ -12,6 +12,8 @@ for ff=1:2:ff_max
     ffVec = [ffVec zeros(1,100) ff*ones(1,size(tmp,2))];  
     uu = [uu zeros(1,100) tmp];    
 end
+ffVec = [ffVec zeros(1,100)]; 
+uu = [uu zeros(1,100)];
 tt = dt * (0:size(uu,2)-1);
 
 subplot(2,1,1);
@@ -24,6 +26,10 @@ s = tf('s');
 
 yy = lsim(((100*2*pi)^2/(s^2+0.707*(100*2*pi)*s+(100*2*pi)^2)), uu, tt);
 yy = awgn(yy,10,'measured'); % Add gaussian noise
+
+% Find the indices where theres a recording
+indices = find(abs(diff(ffVec))>0);
+indices = reshape([indices size(ffVec,2)],2,[])';
 
 % Filter using the frequency we know we recorded (Using filtfilt to not affect the phase)
 wn = 1*2*pi;

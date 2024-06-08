@@ -52,12 +52,23 @@ end
 %% Estimate the transfer function and compare to GT
 ffs = []; gains = []; phases = []; kk = 1;
 repetitons = 10;
+freq_estimated = [];
+amp_estimated = [];
 
 for kk = 1:size(yys,2)
     % Need to know the tested freq and amplitude (can estimate from input
     % probably)
     tts_filtered = tts{kk};
     ff = ffToSample(kk);
+    
+    % This estimates the freq and amplitude from the input signal (Its
+    % better cause the user dosent have to to remember the params)
+    uu = uus{kk};
+    [amplitude, frequency] = estimateSineParams(uu, 1/dt);
+    freq_estimated = [freq_estimated frequency];
+    amp_estimated = [amp_estimated amplitude];
+    Amp = amplitude;
+    ff = frequency;
     
     % Clean the signals (no phase filter filtfilt)
     wn = ff*2*pi;
@@ -72,6 +83,14 @@ for kk = 1:size(yys,2)
     gains = [gains gain/Amp]; 
     phases = [phases phase];
 end
+close all
+
+figure(); title('Estimate Errors of freq and amp');
+subplot(2,1,1);
+plot(abs(freq_estimated-ffToSample))
+subplot(2,1,2); 
+plot(abs(amp_estimated-5))
+
 phases = phaseFixer(phases);
 %% Compare the results
 [gain_GT, phase_GT, wout, ~, ~] = bode(P, ffs*2*pi);
@@ -140,6 +159,35 @@ function indexMatrix = extractSinusoidIndices(paddedArray)
     
     % Convert the indices matrix to the desired format
     indexMatrix = indices;
+end
+
+function [amplitude, frequency] = estimateSineParams(signal, Fs)
+    % signal: The input sine signal
+    % Fs: Sampling frequency of the signal
+
+    % Length of the signal
+    L = length(signal);
+
+    % Perform FFT
+    Y = fft(signal);
+
+    % Compute the two-sided spectrum and then the single-sided spectrum
+    P2 = abs(Y / L);
+    P1 = P2(1:L/2+1);
+    P1(2:end-1) = 2 * P1(2:end-1);
+
+    % Define the frequency domain f
+    f = Fs * (0:(L/2)) / L;
+
+    % Find the index of the maximum value in P1 (ignoring the DC component)
+    [~, index] = max(P1(2:end));
+    index = index + 1; % Adjust index because we ignored the DC component
+
+    % The frequency corresponding to the maximum value in P1
+    frequency = f(index);
+
+    % The amplitude is twice the magnitude at this frequency (because we consider single-sided spectrum)
+    amplitude = P1(index);
 end
 
 function o_phases = phaseFixer(i_phases)
